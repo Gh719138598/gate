@@ -1,0 +1,40 @@
+name: check
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: false
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r requirements.txt
+      - name: Run checker
+        env:
+          CHECK_WORKER: https://gate-check.sz20220417.workers.dev/check?sstp=vpn:vpn@
+          CHECK_CONCURRENCY: '32'
+          CHECK_TIMEOUT: '90'
+          NODES_URL: https://gh719138598.github.io/gate/nodes.txt
+        run: python vpngate.py
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+  deploy:
+    needs: check
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
